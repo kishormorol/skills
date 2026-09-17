@@ -75,3 +75,39 @@ number you expected actually moved. Then report what changed, what you skipped, 
 Sometimes the data cannot support the decision. Say so, say what evidence would support
 it, and stop. A bulk write on an unverified signal is worse than none, because afterwards
 it looks authoritative.
+
+## Installing the guard as a hook (optional)
+
+`scripts/blast-radius.sh` is a `PreToolUse` hook that runs the checklist above against the
+command itself. It exists because of the trigger problem: a skill about not trusting a
+query only helps if it loads, and the agent that would blindly run the query is the one
+that will not think to load it.
+
+Hooks are wired through settings, not by living in this folder, so nothing happens until
+you add it to `~/.claude/settings.json` (or a project `.claude/settings.json`):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/skills/blast-radius/scripts/blast-radius.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+An unfiltered write (`deleteMany({})`, `DELETE FROM users;`) returns
+`permissionDecision: "ask"`. A filtered bulk write returns the checklist as
+`additionalContext`. Read-only commands, and anything already flagged `--dry-run`, stay
+silent — a dry run is the behaviour this skill exists to encourage.
+
+It fails open: no `jq`, unrecognised input, or any error exits `0` silently. A safety hook
+that breaks someone's workflow gets deleted, and then it protects nobody.

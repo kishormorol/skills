@@ -16,11 +16,16 @@ CMD=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null) |
 
 # Do NOT strip string literals: real commands carry the code inside quotes
 # (node -e "...deleteMany()"), so stripping them removes the only thing worth scanning.
-# Shell comments are safe to drop.
-SCAN=$(printf '%s' "$CMD" | sed -e 's/#.*$//')
+# That rules out stripping trailing '#' too - a '#' inside a quoted string (a colour
+# literal, a URL fragment) would truncate the scan and hide the write after it. Only
+# whole-line comments are unambiguous, so only those are dropped.
+SCAN=$(printf '%s' "$CMD" | sed -e 's/^[[:space:]]*#.*$//')
 
 # Read-only commands never write, however alarming their arguments look.
-FIRST=$(printf '%s' "$SCAN" | sed -e 's/^[[:space:]]*//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]*//g' | awk '{print $1}')
+# Skip every leading VAR=value assignment, not just the first: `FOO=1 BAR=2 rg ...` is
+# still a read of rg. A sed '^' anchor cannot re-match after the first strip, so scan
+# the fields instead and take the first one that is not an assignment.
+FIRST=$(printf '%s' "$SCAN" | awk '{for (i = 1; i <= NF; i++) if ($i !~ /^[A-Za-z_][A-Za-z0-9_]*=/) { print $i; exit } }')
 case "$FIRST" in
   grep|rg|ag|cat|less|more|head|tail|ls|echo|printf|wc|awk|sed|jq|diff|man|which|type) exit 0 ;;
 esac
