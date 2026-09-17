@@ -6,81 +6,72 @@ license: Apache-2.0
 
 # Blast radius
 
-A bulk operation is a claim about the world: *everyone matching this query deserves this
-outcome.* The query is usually right about the rows and wrong about the world.
+A query is a claim about rows. A bulk operation is a claim about the world. They come
+apart more often than they look like they will, and the gap is where the damage happens.
 
-This skill is the gap between those two. Work through it before the write, not after.
+## The six ways a signal lies
 
-## 1. Name the signal, then attack it
+Learn these as names. Most bad bulk writes are one of them, and naming the failure is
+usually enough to stop it.
 
-Write down the sentence the query implies, then try to falsify it.
+| # | Name | The shape | Real cost |
+|---|---|---|---|
+| 1 | **Absence ≠ departure** | "Not in the system" merges *never arrived* with *left* | Archiving on "no account on the chat platform" caught the **research director**. Of 505 members, exactly **one** had ever left; 80 had never joined. |
+| 2 | **Ghost activity** | Rows a cron created look like rows a human caused | **3,037 of 3,392** weekly reports were auto-generated drafts. Counting them made 411 idle people look active. |
+| 3 | **The field changed meaning** | A column was write-once, or unpopulated, until some commit | Timestamps before the fix answer a different question than timestamps after it. Find the commit before trusting the range. |
+| 4 | **Status lags the artifact** | A row says `pending` while the thing already happened | Someone sat at `shortlisted` while holding a live offer. Re-sending would have rotated their token and **killed the accept link already in their inbox**. |
+| 5 | **Clustered timestamps** | Everything is "stale" at suspiciously similar ages | A tight age band is one bulk edit, not independent decay. `updatedAt` records the last touch, not the last event. |
+| 6 | **Loose matching invents members** | Surname, prefix or fuzzy matching pulls in strangers | "Hossain" matched one person to another and credited them with two papers they did not write. Match on identity, never a fragment. |
 
-> "No Discord account means they stopped working here."
+Write down the sentence your filter implies, then try to falsify it with the table above.
+If the sentence survives, continue. If it does not, the query was fine and the plan was wrong.
 
-Now check: of 505 active members, exactly **one** had ever left the server — and they
-were active that same day. Eighty had simply never joined, including the Research
-Director. The signal measured *joining*, not *working*. The sentence was false and the
-query was fine.
+## Classify every row before touching any
 
-Signals fail in recognisable ways. Check yours against these:
-
-| Failure | What it looks like | How to catch it |
-|---|---|---|
-| **Absence ≠ departure** | "Not in the system" conflates *never arrived* with *left* | Split the two. They need different actions. |
-| **Auto-generated rows fake activity** | Draft records created by a cron look like work | Filter to rows a human caused — `status != 'draft'` |
-| **A field changed meaning** | A column was write-once until a fix landed | Find the commit. Data before it answers a different question. |
-| **Status lags reality** | A row says `pending` while the thing already happened | Check the artifact (a token, a document), not the label |
-| **Timestamps record the last edit** | Everything is "stale" at the same age | A tight age cluster is one bulk edit, not independent decay |
-| **Loose matching invents members** | Surname or prefix matching pulls in strangers | Match on identity, never on a name fragment |
-
-## 2. Classify every row before touching any
-
-Do not act on the count. Resolve each row to a thing you can name.
-
-Ninety-eight permission grants once looked stale. Classified, they were **74** ids
-matching no user at all (bots, unlinked staff, people long gone), **6** senior staff
-holding deliberate oversight, and **18** genuinely stale. Revoking "the 98" would have
-cut off the service account and the team leads.
-
-Every row lands in exactly one bucket:
+**Never act on a count.** Resolve each row to something you can name, then sort it:
 
 - **act** — you can say who it is and why it qualifies
-- **exclude** — it qualifies but something outranks the rule (a live paper, a paid
-  contract, an accepted offer, ownership of something in flight)
-- **unknown** — you cannot resolve it. **Unknown is never "act".**
+- **exclude** — it qualifies, but something outranks the rule: work in flight, a paid
+  contract, ownership of something live, a role the rule never meant to reach
+- **unknown** — you cannot resolve it. **Unknown is never act.**
 
-Then check the buckets for people the rule was never meant to catch. If the most senior
-person in the org is in `act`, the rule is wrong — not them.
+Ninety-eight permission grants once looked stale. Classified: **74** matched no user at
+all (service accounts, unlinked staff, people long gone), **6** were senior staff holding
+deliberate oversight, **18** were genuinely stale. "Revoke the 98" would have cut off the
+bot and the team leads.
 
-## 3. Ask what each row takes with it
+Then read the **act** bucket back. If it contains the most senior person in the
+organisation, a service account, or anything mid-flight, the rule is wrong — not them.
+Narrow the rule rather than hand-listing exceptions, so it stays true next time.
 
-A row is not only itself. Before removing a person, an account or a record, check what
-points at it: work in flight, things they own, things owed to them, anything mid-flight
-that would break. Exclusions found this way are the point of the exercise, not friction.
+## Ask what each row takes with it
 
-## 4. Make the write refuse to be wrong
+A row is not only itself. Before removing a person, account or record, check what points
+at it: work in progress, things it owns, things owed to it, anything that breaks when it
+disappears. Exclusions found this way are the output, not friction.
 
-Encode the guard in the script, not in your care at the time:
+Eight of twenty-three accounts archived on a "never logged in" rule turned out to be
+published authors with live submissions — including one paper awaiting revisions and one
+already accepted.
 
-- **Dry run prints every affected row**, and the apply path is a separate flag.
-- **Refuse the ambiguous** — the script errors on a row it cannot classify rather than
-  skipping it silently.
-- **Refuse the already-done** — re-sending often rotates a token and invalidates a link
-  someone already holds. Check for the artifact before writing.
-- **Narrow the rule** rather than hand-listing exceptions, so it stays true next time.
-- **Write the record after the side effect**, never before: a failed send must not leave
-  a row marked as sent.
-- **Fail closed on environment** — if a link would point at localhost, refuse the batch.
-  That guard is worth more than any amount of attention.
+## Make the write refuse to be wrong
 
-## 5. Verify the outcome, not the call
+Put the guard in the script, not in how careful you feel at the time:
 
-The function returning success means it was accepted, not that it worked. Re-read the
-state afterwards and check the number you expected actually moved. Then say plainly what
-changed, what you skipped, and why — the skips are the useful half of the report.
+- **Dry run prints every affected row**; applying is a separate flag.
+- **Refuse the ambiguous** — error on a row you cannot classify rather than skipping it.
+- **Refuse the already-done** — check for the artifact, not the status field.
+- **Write the record after the side effect.** A failed send must not leave a row marked sent.
+- **Fail closed on environment.** If a link would point at localhost, refuse the batch.
 
-## When the answer is "this cannot be done safely"
+## Verify the outcome, not the call
 
-Sometimes the honest output is that the data cannot support the decision. Say so, say
-what evidence would support it, and stop. A bulk write on a signal you could not verify
-is worse than no write, because it looks authoritative afterwards.
+A function returning success means accepted, not done. Re-read the state and check the
+number you expected actually moved. Then report what changed, what you skipped, and why —
+**the skips are the useful half.**
+
+## When the honest answer is "not safely"
+
+Sometimes the data cannot support the decision. Say so, say what evidence would support
+it, and stop. A bulk write on an unverified signal is worse than none, because afterwards
+it looks authoritative.
