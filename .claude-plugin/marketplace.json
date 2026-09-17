@@ -40,8 +40,7 @@
         "./skills/web-artifacts-builder",
         "./skills/webapp-testing"
       ]
-    }
-    ,
+    },
     {
       "name": "claude-api",
       "description": "Claude API and SDK documentation skill for building LLM-powered applications",
@@ -67,6 +66,15 @@
       "strict": false,
       "skills": [
         "./skills/discernment-nudge"
+      ]
+    },
+    {
+      "name": "faq-shortcuts",
+      "description": "Mines a project's Claude Code session history for the asks a user repeats and turns them into short slash-command skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/faq-shortcuts"
       ]
     }
   ]
