@@ -76,6 +76,15 @@
       "skills": [
         "./skills/faq-shortcuts"
       ]
+    },
+    {
+      "name": "blast-radius",
+      "description": "Measures what a bulk or destructive operation would actually touch before it runs, classifying every affected row into act/exclude/unknown; ships an optional PreToolUse hook that fires on the command itself",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/blast-radius"
+      ]
     }
   ]
 }
