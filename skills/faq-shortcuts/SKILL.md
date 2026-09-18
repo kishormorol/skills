@@ -1,7 +1,7 @@
 ---
 name: faq-shortcuts
-description: Turn the questions and instructions a user keeps typing into a project into short slash-command skills, mined from their real Claude Code session history and git log. Use when the user says they ask the same things every day, wants an FAQ or shortcuts or abbreviations for a project, wants to "stop writing the whole command", or asks what they repeat most.
-argument-hint: "[project dir, default cwd] [--since YYYY-MM-DD]"
+description: Turn the questions and instructions a user keeps typing into a project into short slash-command skills, mined from their real Claude Code and Codex session history and git log. The shortcuts load in Claude Code, Codex and Cursor. Use when the user says they ask the same things every day, wants an FAQ or shortcuts or abbreviations for a project, wants to "stop writing the whole command", or asks what they repeat most.
+argument-hint: "[project dir, default cwd] [--source all|claude|codex] [--since YYYY-MM-DD]"
 ---
 
 # FAQ shortcuts from your own history
@@ -17,11 +17,18 @@ Build from evidence, not from guesses about what might be useful.
 ## 1. Collect the asks
 
 ```bash
-python3 scripts/extract_asks.py <project_dir> [--since YYYY-MM-DD] > asks.tsv
+python3 scripts/extract_asks.py <project_dir> [--source all|claude|codex] [--since YYYY-MM-DD] > asks.tsv
 ```
 
-This prints every prompt typed in that project's sessions, oldest first. Write it to a
-scratch location, not into the repo, because prompts can contain names, emails and tokens.
+This prints every prompt typed in that project's sessions, oldest first, as
+`date<TAB>source<TAB>prompt`. It reads Claude Code (`~/.claude/projects/`) and Codex
+(`~/.codex/sessions/`, or `$CODEX_HOME`) by default, and skips subagent turns and scripted
+runs such as `codex exec`, because nobody typed those. An ask repeated across both tools
+counts as one cluster. Cursor history is not read yet: it lives in an undocumented SQLite
+store.
+
+Write the output to a scratch location, not into the repo, because prompts can contain
+names, emails and tokens.
 
 Also read the commit subjects (`git log --format='%ad %s' --date=short`). Commits show which
 *operations* recur, like repeated `send-*`, `sync-*` and `import-*` scripts. Prompts show how
@@ -42,8 +49,8 @@ Drop one-offs and anything a single command already answers.
 
 ## 3. Check what already exists
 
-List `.claude/skills/`, `.claude/commands/` and the project's CLAUDE.md. Extend an existing
-skill instead of adding a near-duplicate. Then find the project's existing tools for each
+List `.claude/skills/`, `.claude/commands/`, `.agents/skills/` and the project's CLAUDE.md
+and AGENTS.md. Extend an existing skill instead of adding a near-duplicate. Then find the project's existing tools for each
 cluster, such as scripts, CLI commands and API routes. **A shortcut should point to the tool
 that exists.** Don't write a new one.
 
@@ -58,7 +65,18 @@ typing. Use one lowercase word, and never shadow a built-in command.
 
 ## 5. Write each skill
 
-`.claude/skills/<name>/SKILL.md`, committed with the project so it travels:
+`.claude/skills/<name>/SKILL.md`, committed with the project so it travels. Claude Code and
+Cursor load skills from `.claude/skills/`. Codex loads them from `.agents/skills/`, so link each
+one there as well:
+
+```bash
+mkdir -p .agents/skills && ln -s ../../.claude/skills/<name> .agents/skills/<name>
+```
+
+Link each skill folder, not `.agents/skills` itself: Codex follows a symlinked skill folder
+but does not scan a symlinked `.agents/skills`.
+
+The skill file itself:
 
 ```markdown
 ---
@@ -87,8 +105,9 @@ Rules:
 
 ## 6. Make them findable
 
-Add a table to the project's CLAUDE.md that maps each shortcut to the sentence it replaces.
-It serves as both documentation and a reminder to use it.
+Add a table to the project's CLAUDE.md (and AGENTS.md, if the project has one) that maps
+each shortcut to the sentence it replaces. It serves as both documentation and a reminder
+to use it.
 
 ## Report
 

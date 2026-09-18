@@ -70,7 +70,7 @@
     },
     {
       "name": "faq-shortcuts",
-      "description": "Mines a project's Claude Code session history for the asks a user repeats and turns them into short slash-command skills",
+      "description": "Mines a project's Claude Code and Codex session history for the asks a user repeats and turns them into short skills that load in Claude Code, Codex and Cursor",
       "source": "./",
       "strict": false,
       "skills": [
